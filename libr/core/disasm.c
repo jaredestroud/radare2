@@ -2150,6 +2150,31 @@ static int flagCmp(const void *a, const void *b) {
 	return strcmp (fa->name, fb->name);
 }
 
+static void __preline_flag(RDisasmState *ds, RFlagItem *flag) {
+	ds_newline (ds);
+	ds_begin_line (ds);
+	ds_pre_line (ds);
+	if (ds->show_color) {
+		bool hasColor = false;
+		if (flag->color) {
+			char *color = r_cons_pal_parse (flag->color, NULL);
+			if (color) {
+				r_cons_strcat (color);
+				free (color);
+				ds->lastflag = flag;
+				hasColor = true;
+			}
+		}
+		if (!hasColor) {
+			r_cons_strcat (ds->color_flag);
+		}
+	}
+	if (!ds->show_offset) {
+		r_cons_printf ("     ");
+	}
+	r_cons_printf ("; ");
+}
+
 #define printPre (outline || !*comma)
 static void ds_show_flags(RDisasmState *ds) {
 	//const char *beginch;
@@ -2170,6 +2195,7 @@ static void ds_show_flags(RDisasmState *ds) {
 	bool outline = !ds->flags_inline;
 	const char *comma = "";
 	bool keep_lib = r_config_get_i (core->config, "bin.demangle.libs");
+	int nth = 0;
 	r_list_foreach (uniqlist, iter, flag) {
 		if (f && f->addr == flag->offset && !strcmp (flag->name, f->name)) {
 			// do not show flags that have the same name as the function
@@ -2200,6 +2226,7 @@ static void ds_show_flags(RDisasmState *ds) {
 				continue;
 			}
 		}
+		// TODO: use more __preline_flag (ds);
 		if (outline || !*comma) {
 			ds_begin_line (ds);
 		}
@@ -2235,25 +2262,33 @@ static void ds_show_flags(RDisasmState *ds) {
 
 		if (!ds->show_flgoff || fake_flag_marks) {
 			if (printPre) {
-				r_cons_printf (";-- ");
+				r_cons_printf ("; ");
 			}
 		}
 
 		if (ds->asm_demangle && flag->realname) {
-			if (!strncmp (flag->name, "case.", 5)) {
+			if (!strncmp (flag->name, "switch.", 7)) {
+				r_cons_printf ("switch:");
+			} else if (!strncmp (flag->name, "case.", 5)) {
+				if (nth > 0) {
+					__preline_flag (ds, flag);
+				}
 				if (!strncmp (flag->name + 5, "default", 7)) {
-					r_cons_printf ("%s:", flag->name);
+					r_cons_printf ("default:"); // %s:", flag->name);
+					r_str_ncpy (addr, flag->name + 5 + strlen ("default."), sizeof (addr));
 				} else if (case_prev != case_start) {
-					r_cons_printf ("cases %d...%d (%s):", case_start, case_prev, addr);
+					r_cons_printf ("case %d...%d:", case_start, case_prev);
 					if (iter != uniqlist->head) {
 						iter = iter->p;
 					}
 					case_start = case_current;
 				} else {
-					r_cons_printf ("case %d (%s):", case_prev, addr);
+					r_cons_printf ("case %d:", case_prev);
 					case_start = -1;
 				}
 				case_prev = case_current;
+				ds_align_comment (ds);
+				r_cons_printf ("%s; from %s", ds->show_color ? ds->pal_comment : "", addr);
 			} else {
 				const char *lang = r_config_get (core->config, "bin.lang");
 				char *name = r_bin_demangle (core->bin->cur, lang, flag->realname, flag->offset, keep_lib);
@@ -2288,9 +2323,9 @@ static void ds_show_flags(RDisasmState *ds) {
 		} else {
 			comma = ", ";
 		}
+		nth++;
 	}
 	if (!outline && *comma) {
-		r_cons_printf (":");
 		ds_newline (ds);
 	}
 	r_list_free (uniqlist);
@@ -5281,6 +5316,7 @@ toro:
 				ds->at += skip_bytes_flag;
 			}
 		}
+		ds_show_xrefs (ds);
 		ds_show_flags (ds);
 		if (skip_bytes_flag && ds->midflags == R_MIDFLAGS_SHOW) {
 			ds->at -= skip_bytes_flag;
@@ -5311,7 +5347,6 @@ toro:
 		ds_adistrick_comments (ds);
 		/* XXX: This is really cpu consuming.. need to be fixed */
 		ds_show_functions (ds);
-		ds_show_xrefs (ds);
 
 		if (ds->show_comments && !ds->show_comment_right) {
 			ds_show_refs (ds);
