@@ -850,6 +850,9 @@ R_API RCoreFile *r_core_file_open(RCore *r, const char *file, int flags, ut64 lo
 	}
 	r->io->bits = r->assembler->bits; // TODO: we need an api for this
 	RIODesc *fd = r_io_open_nomap (r->io, file, flags, 0644);
+	if (r_cons_is_breaked()) {
+		goto beach;
+	}
 	if (!fd && openmany) {
 		// XXX - make this an actual option somewhere?
 		fh = r_core_file_open_many (r, file, flags, loadaddr);
@@ -907,6 +910,14 @@ R_API RCoreFile *r_core_file_open(RCore *r, const char *file, int flags, ut64 lo
 			swstep = false;
 		}
 		r_config_set_i (r->config, "dbg.swstep", swstep);
+		// Set the correct debug handle
+		if (fd->plugin && fd->plugin->isdbg) {
+			char *dh = r_str_ndup (file, (strstr (file, "://") - file));
+			if (dh) {
+				r_debug_use (r->dbg, dh);
+				free (dh);
+			}
+		}
 	}
 	//used by r_core_bin_load otherwise won't load correctly
 	//this should be argument of r_core_bin_load <shrug>

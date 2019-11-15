@@ -40,9 +40,6 @@ static void print_node_options(RConfigNode *node) {
 	}
 }
 
-/* TODO: use loop here */
-/*------------------------------------------------------------------------------------------*/
-
 static int compareName(const RAnalFunction *a, const RAnalFunction *b) {
 	return a && b && a->name && b->name && strcmp (a->name, b->name);
 }
@@ -202,6 +199,13 @@ static bool cb_debug_hitinfo(void *user, void *data) {
 	RCore *core = (RCore*) user;
 	RConfigNode *node = (RConfigNode*) data;
 	core->dbg->hitinfo = node->i_value;
+	return true;
+}
+
+static bool cb_anal_jmptailcall(void *user, void *data) {
+	RCore *core = (RCore*) user;
+	RConfigNode *node = (RConfigNode*) data;
+	core->anal->opt.tailcall = node->i_value;
 	return true;
 }
 
@@ -2017,6 +2021,13 @@ static bool cb_scrhtml(void *user, void *data) {
 	return true;
 }
 
+static bool cb_newshell(void *user, void *data) {
+	RConfigNode *node = (RConfigNode *)data;
+	RCore *core = (RCore *)user;
+	core->use_tree_sitter_r2cmd = node->i_value;
+	return true;
+}
+
 static bool cb_scrhighlight(void *user, void *data) {
 	RConfigNode *node = (RConfigNode *) data;
 	r_cons_highlight (node->value);
@@ -2835,6 +2846,7 @@ R_API int r_core_config_init(RCore *core) {
 		"anal.fcn", "anal.bb",
 	NULL);
 	SETI ("anal.timeout", 0, "Stop analyzing after a couple of seconds");
+	SETICB ("anal.jmp.tailcall", 0, &cb_anal_jmptailcall, "Consume a branch as a call if delta is big");
 
 	SETCB ("anal.armthumb", "false", &cb_analarmthumb, "aae computes arm/thumb changes (lot of false positives ahead)");
 	SETCB ("anal.jmp.after", "true", &cb_analafterjmp, "Continue analysis after jmp/ujmp");
@@ -3110,7 +3122,7 @@ R_API int r_core_config_init(RCore *core) {
 	SETICB ("bin.maxstrbuf", 1024*1024*10, & cb_binmaxstrbuf, "Maximum size of range to load strings from");
 	n = NODECB ("bin.str.enc", "guess", &cb_binstrenc);
 	SETDESC (n, "Default string encoding of binary");
-	SETOPTIONS (n, "latin1", "utf8", "utf16le", "utf32le", "guess", NULL);
+	SETOPTIONS (n, "latin1", "utf8", "utf16le", "utf32le", "utf16be", "guess", NULL);
 	SETCB ("bin.prefix", NULL, &cb_binprefix, "Prefix all symbols/sections/relocs with a specific string");
 	SETCB ("bin.rawstr", "false", &cb_rawstr, "Load strings from raw binaries");
 	SETCB ("bin.strings", "true", &cb_binstrings, "Load strings from rbin on startup");
@@ -3151,6 +3163,8 @@ R_API int r_core_config_init(RCore *core) {
 	SETCB ("cfg.sandbox", "false", &cb_cfgsanbox, "Sandbox mode disables systems and open on upper directories");
 	SETPREF ("cfg.wseek", "false", "Seek after write");
 	SETCB ("cfg.bigendian", "false", &cb_bigendian, "Use little (false) or big (true) endianness");
+	SETCB ("cfg.newshell", "false", &cb_newshell, "Use new commands parser");
+	SETI ("cfg.cpuaffinity", 0, "Run on cpuid");
 
 	/* log */
 	// R2_LOGLEVEL / log.level

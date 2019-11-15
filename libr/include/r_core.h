@@ -236,8 +236,6 @@ typedef struct r_core_t {
 	ut32 blocksize;
 	ut32 blocksize_max;
 	ut8 *block;
-	ut8 *oobi; /* out of band input ; used for multiline or file input */
-	int oobi_len;
 	RBuffer *yank_buf;
 	ut64 yank_addr;
 	bool tmpseek;
@@ -335,6 +333,7 @@ typedef struct r_core_t {
 	bool scr_gadgets;
 	bool log_events; // core.c:cb_event_handler : log actions from events if cfg.log.events is set
 	RList *ropchain;
+	bool use_tree_sitter_r2cmd;
 
 	RMainCallback r_main_radare2;
 	// int (*r_main_radare2)(int argc, char **argv);
@@ -388,8 +387,8 @@ R_API RConfig *r_core_get_config (RCore *core);
 R_API bool r_core_init(RCore *core);
 R_API void r_core_bind_cons(RCore *core); // to restore pointers in cons
 R_API RCore *r_core_new(void);
-R_API RCore *r_core_free(RCore *core);
-R_API RCore *r_core_fini(RCore *c);
+R_API void r_core_free(RCore *core);
+R_API void r_core_fini(RCore *c);
 R_API void r_core_wait(RCore *core);
 R_API RCore *r_core_ncast(ut64 p);
 R_API RCore *r_core_cast(void *p);

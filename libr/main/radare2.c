@@ -1033,15 +1033,9 @@ R_API int r_main_radare2(int argc, char **argv) {
 				f = r_acp_to_utf8 (f);
 #	endif // __WINDOWS__
 				if (f) {
-#		if __WINDOWS__
-					pfile = r_str_append (pfile, "\"");
-					pfile = r_str_append (pfile, f);
-					pfile = r_str_append (pfile, "\"");
-#		else
 					char *escaped_path = r_str_arg_escape (f);
 					pfile = r_str_append (pfile, escaped_path);
 					free (escaped_path);
-#		endif
 					file = pfile; // r_str_append (file, escaped_path);
 				}
 #endif
@@ -1241,6 +1235,8 @@ R_API int r_main_radare2(int argc, char **argv) {
 			lock = r_th_lock_new (false);
 			rabin_th = r_th_new (&rabin_delegate, lock, 0);
 			if (rabin_th) {
+				int cpuaff = (int)r_config_get_i (r.config, "cfg.cpuaffinity");
+				r_th_setaffinity (rabin_th, cpuaff);
 				r_th_setname (rabin_th, "rabin_th");
 			}
 			// rabin_delegate (NULL);
